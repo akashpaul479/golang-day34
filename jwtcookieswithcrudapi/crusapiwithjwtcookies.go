@@ -256,6 +256,14 @@ func Validate(users User) error {
 	return nil
 }
 
+func LogActivity(action, user string) {
+	log.Printf("[LOG] %s by %s at %s\n", action, user, time.Now())
+}
+
+func AuditLOg(action string, id int, user string) {
+	log.Printf("[AUDIT] %s  userID=%d by %s\n", action, id, user)
+}
+
 // create user
 
 func (h *HybridHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
@@ -280,6 +288,10 @@ func (h *HybridHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	users.ID = int(id)
+
+	go LogActivity("CREATE_USER", r.Header.Get("X-User-Email"))
+	go AuditLOg("CREATE", users.ID, r.Header.Get("X-User-Email"))
+
 	w.Header().Set("Content-type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(users)
@@ -310,7 +322,7 @@ func (h *HybridHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	h.Redis.Client.Set(h.Ctx, id, jsonData, 10*time.Minute)
+	go h.Redis.Client.Set(h.Ctx, id, jsonData, 10*time.Minute)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonData)
@@ -351,7 +363,8 @@ func (h *HybridHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
-	h.Redis.Client.Set(h.Ctx, fmt.Sprint(users.ID), jsondata, 10*time.Minute)
+	go h.Redis.Client.Set(h.Ctx, fmt.Sprint(users.ID), jsondata, 10*time.Minute)
+	go AuditLOg("UPDATE", id, r.Header.Get("X-User-Email"))
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -379,6 +392,7 @@ func (h *HybridHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "user not found", http.StatusBadRequest)
 		return
 	}
+	go AuditLOg("DELETE", Idint, r.Header.Get("X-User-Email"))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 

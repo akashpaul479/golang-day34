@@ -1,7 +1,7 @@
 package main
 
 import (
-	"jwtinhttponlycookies/golang-day34/jwtcookieswithcrudapi"
+	"jwtinhttponlycookies/jwtcookieswithcrudapi"
 )
 
 func main() {
